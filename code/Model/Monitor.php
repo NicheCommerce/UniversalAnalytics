@@ -180,7 +180,7 @@ class BlueAcorn_UniversalAnalytics_Model_Monitor {
 
         $data = array_merge($data, $oldData);
 
-        if (Mage::getSingleton('checkout/session')->getQuote()->hasProductId($product->getId())) {
+        if (Mage::getSingleton('checkout/session')->getQuote()->hasProductId($product->getId()) || $product->getHideImpression()) {
             $data['hide-impression'] = true;
         }
 
@@ -211,9 +211,19 @@ class BlueAcorn_UniversalAnalytics_Model_Monitor {
 
         foreach ($trans as $googleAttr => $magentoAttr) {
             $attributeList = (is_array($magentoAttr)) ? array_keys($magentoAttr) : Array($magentoAttr);
+            $multi = false;
+            if (count($attributeList) > 1 && in_array($googleAttr, ['variant'])) {
+                $data[$googleAttr] = '';
+                $multi = true;
+            }
 
             foreach ($attributeList as $subAttribute) {
-                $data[$googleAttr] = $this->findAttributeValue($object, $subAttribute);
+                if ($multi) {
+                    $data[$googleAttr] .= '-' . $this->findAttributeValue($object, $subAttribute);
+                    $data[$googleAttr] = trim($data[$googleAttr], '-');
+                } else {
+                    $data[$googleAttr] = $this->findAttributeValue($object, $subAttribute);
+                }
 
                 if ( ($data[$googleAttr] !== null) && ($data[$googleAttr] !== '') ) {
                     if ($googleAttr == 'price') {
@@ -225,7 +235,9 @@ class BlueAcorn_UniversalAnalytics_Model_Monitor {
                         $data[$googleAttr] = (int)$data[$googleAttr];
                     }
 
-                    break;
+                    if (!$multi) {
+                        break;
+                    }
                 }
             }
         }
@@ -458,7 +470,12 @@ class BlueAcorn_UniversalAnalytics_Model_Monitor {
         $object = $objectCollection->getFirstItem();
         $names = Array();
 
-        while ($object->getLevel() > 0) {
+        $depth = 0;
+        if (!Mage::app()->isSingleStoreMode()) {
+            $depth = 1;
+        }
+
+        while ($object->getLevel() > $depth) {
             $names[] = $object->getName();
             $object = $object->getParentCategory();
         }

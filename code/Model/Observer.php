@@ -69,6 +69,9 @@ class BlueAcorn_UniversalAnalytics_Model_Observer extends Mage_Core_Model_Observ
         $listName     = $this->helper->getCollectionListName($collection);
 
         foreach ($collection as $product) {
+            if ($product->getData('ignore_baua') || $product->getVisibility() == Mage_Catalog_Model_Product_Visibility::VISIBILITY_NOT_VISIBLE) {
+                continue;
+            }
             $this->monitor->addProductImpression($product, $listName);
         }
 
